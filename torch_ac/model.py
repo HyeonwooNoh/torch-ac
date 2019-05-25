@@ -10,14 +10,14 @@ class ACModel:
         pass
 
     @abstractmethod
-    def forward(self, obs):
+    def forward(self, obs, prev_action):
         pass
 
 class RecurrentACModel(ACModel):
     recurrent = True
 
     @abstractmethod
-    def forward(self, obs, memory):
+    def forward(self, obs, prev_action, memory):
         pass
 
     @property

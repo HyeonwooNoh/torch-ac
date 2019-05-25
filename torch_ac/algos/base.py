@@ -83,6 +83,8 @@ class BaseAlgo(ABC):
         self.mask = torch.ones(shape[1], device=self.device)
         self.masks = torch.zeros(*shape, device=self.device)
         self.actions = torch.zeros(*shape, device=self.device, dtype=torch.int)
+        self.prev_action = torch.zeros(shape[1], device=self.device, dtype=torch.int)
+        self.prev_actions = torch.zeros(*shape, device=self.device, dtype=torch.int)
         self.values = torch.zeros(*shape, device=self.device)
         self.rewards = torch.zeros(*shape, device=self.device)
         self.advantages = torch.zeros(*shape, device=self.device)
@@ -126,9 +128,12 @@ class BaseAlgo(ABC):
             preprocessed_obs = self.preprocess_obss(self.obs, device=self.device)
             with torch.no_grad():
                 if self.acmodel.recurrent:
-                    dist, value, memory = self.acmodel(preprocessed_obs, self.memory * self.mask.unsqueeze(1))
+                    dist, value, memory = self.acmodel(
+                        preprocessed_obs, self.prev_action * self.mask.int(),
+                        self.memory * self.mask.unsqueeze(1))
                 else:
-                    dist, value = self.acmodel(preprocessed_obs)
+                    dist, value = self.acmodel(
+                        preprocessed_obs, self.prev_action * self.mask.int())
             action = dist.sample()
 
             obs, reward, done, _ = self.env.step(action.cpu().numpy())
@@ -137,6 +142,8 @@ class BaseAlgo(ABC):
 
             self.obss[i] = self.obs
             self.obs = obs
+            self.prev_actions[i] = self.prev_action
+            self.prev_action[:] = action
             if self.acmodel.recurrent:
                 self.memories[i] = self.memory
                 self.memory = memory
@@ -175,9 +182,12 @@ class BaseAlgo(ABC):
         preprocessed_obs = self.preprocess_obss(self.obs, device=self.device)
         with torch.no_grad():
             if self.acmodel.recurrent:
-                _, next_value, _ = self.acmodel(preprocessed_obs, self.memory * self.mask.unsqueeze(1))
+                _, next_value, _ = self.acmodel(
+                    preprocessed_obs, self.prev_action * self.mask.int(),
+                    self.memory * self.mask.unsqueeze(1))
             else:
-                _, next_value = self.acmodel(preprocessed_obs)
+                _, next_value = self.acmodel(
+                    preprocessed_obs, self.prev_action * self.mask.int())
 
         for i in reversed(range(self.num_frames_per_proc)):
             next_mask = self.masks[i+1] if i < self.num_frames_per_proc - 1 else self.mask
@@ -206,6 +216,7 @@ class BaseAlgo(ABC):
             exps.mask = self.masks.transpose(0, 1).reshape(-1).unsqueeze(1)
         # for all tensors below, T x P -> P x T -> P * T
         exps.action = self.actions.transpose(0, 1).reshape(-1)
+        exps.prev_action = self.prev_actions.transpose(0, 1).reshape(-1)
         exps.value = self.values.transpose(0, 1).reshape(-1)
         exps.reward = self.rewards.transpose(0, 1).reshape(-1)
         exps.advantage = self.advantages.transpose(0, 1).reshape(-1)

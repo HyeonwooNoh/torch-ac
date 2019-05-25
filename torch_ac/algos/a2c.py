@@ -44,9 +44,10 @@ class A2CAlgo(BaseAlgo):
             # Compute loss
 
             if self.acmodel.recurrent:
-                dist, value, memory = self.acmodel(sb.obs, memory * sb.mask)
+                dist, value, memory = self.acmodel(
+                    sb.obs, sb.prev_action * sb.mask.int(), memory * sb.mask)
             else:
-                dist, value = self.acmodel(sb.obs)
+                dist, value = self.acmodel(sb.obs, sb.prev_action * sb.mask.int())
 
             entropy = dist.entropy().mean()
 
