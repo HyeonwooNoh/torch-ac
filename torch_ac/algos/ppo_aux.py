@@ -58,7 +58,7 @@ class PPOAuxAlgo(PPOAlgo):
                         preprocessed_obs, masked_prev_action,
                         self.memory * self.mask.unsqueeze(1))
                 else:
-                    dist, value, auxdist = self.acmodel(
+                    dist, value, _, auxdist = self.acmodel(
                         preprocessed_obs, masked_prev_action)
             action = dist.sample()
             # Auxiliary reward is expected mutual information
@@ -120,7 +120,7 @@ class PPOAuxAlgo(PPOAlgo):
                     preprocessed_obs, masked_prev_action,
                     self.memory * self.mask.unsqueeze(1))
             else:
-                _, next_value, next_auxdist = self.acmodel(
+                _, next_value, _, next_auxdist = self.acmodel(
                     preprocessed_obs, masked_prev_action)
 
         self.prev_aux_logprobs[self.num_frames_per_proc-1] = \
@@ -233,7 +233,7 @@ class PPOAuxAlgo(PPOAlgo):
                         dist, value, memory, auxdist = self.acmodel(
                             sb.obs, masked_prev_action, memory * sb.mask)
                     else:
-                        dist, value, auxdist = self.acmodel(
+                        dist, value, _, auxdist = self.acmodel(
                             sb.obs, masked_prev_action)
 
                     entropy = dist.entropy().mean()
